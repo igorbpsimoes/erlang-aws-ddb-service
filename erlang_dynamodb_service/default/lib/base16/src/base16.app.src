@@ -1,0 +1,9 @@
+{application,base16,
+             [{description,"Base16 encoding and decoding"},
+              {vsn,"2.0.1"},
+              {registered,[]},
+              {applications,[kernel,stdlib]},
+              {env,[]},
+              {maintainers,["ESL"]},
+              {licenses,["MIT","GPL (for tests)"]},
+              {links,[{"Github","https://github.com/esl/base16"}]}]}.

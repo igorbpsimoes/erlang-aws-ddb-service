@@ -1,0 +1,11 @@
+{application,erlcloud,
+             [{description,"AWS APIs library for Erlang"},
+              {vsn,"3.8.3"},
+              {registered,[]},
+              {applications,[stdlib,kernel,crypto,public_key,ssl,xmerl,inets,
+                             jsx,eini,base16,lhttpc]},
+              {modules,[]},
+              {env,[{services_vpc_endpoints,[]},
+                    {ec2_meta_host_port,"169.254.169.254:80"}]},
+              {licenses,["BSD-2-Clause"]},
+              {links,[{"Github","https://github.com/erlcloud/erlcloud"}]}]}.
