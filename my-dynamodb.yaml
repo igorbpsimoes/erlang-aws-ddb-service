@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  CloudFormation template for a simple KV store infrastructure
+  (DynamoDB + optional resources).
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: "A name to identify the environment (e.g., dev, prod)."
+
+Resources:
+  # 1) DynamoDB Table (PROVISIONED mode + SSE-KMS)
+  DDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${EnvironmentName}-kv-table"
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20 # 25 is the free tier limit
+        WriteCapacityUnits: 20 # 25 is the free tier limit
+      AttributeDefinitions:
+        - AttributeName: key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: key
+          KeyType: HASH
+      SSESpecification:
+        KMSMasterKeyId: "alias/DDBTableKmsKeyErlangService"
+        SSEEnabled: true
+        SSEType: KMS
+
+  # 2) IAM Role for Application Auto Scaling to access DynamoDB
+  DynamoDBAutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - application-autoscaling.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+
+  # 2.1) Auto Scaling Policy with required actions
+  DynamoDBAutoScalingRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "MyDDBAutoscalingPolicy"
+      Roles:
+        - !Ref DynamoDBAutoScalingRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "dynamodb:DescribeTable"
+              - "dynamodb:UpdateTable"
+              - "cloudwatch:PutMetricAlarm"
+              - "cloudwatch:DescribeAlarms"
+              - "cloudwatch:DeleteAlarms"
+            Resource: "*"
+
+  # 3) Scalable Targets: define min/max capacity for READ + WRITE
+  KVTableReadScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 20
+      MinCapacity: 5
+      ResourceId: !Sub "table/${DDBTable}"
+      RoleARN: !GetAtt DynamoDBAutoScalingRole.Arn
+      ScalableDimension: "dynamodb:table:ReadCapacityUnits"
+      ServiceNamespace: "dynamodb"
+
+  KVTableWriteScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 20
+      MinCapacity: 5
+      ResourceId: !Sub "table/${DDBTable}"
+      RoleARN: !GetAtt DynamoDBAutoScalingRole.Arn
+      ScalableDimension: "dynamodb:table:WriteCapacityUnits"
+      ServiceNamespace: "dynamodb"
+
+  # 4) Scaling Policies: define how we scale IN and OUT (READ + WRITE)
+  KVTableReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: "KVTableReadScalingPolicy"
+      PolicyType: "TargetTrackingScaling"
+      ScalingTargetId: !Ref KVTableReadScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        TargetValue: 70    # e.g., scale when usage hits ~70%
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  KVTableWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: "KVTableWriteScalingPolicy"
+      PolicyType: "TargetTrackingScaling"
+      ScalingTargetId: !Ref KVTableWriteScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        TargetValue: 70
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+Outputs:
+  DynamoDBTableName:
+    Description: "Name of the DynamoDB table."
+    Value: !Ref DDBTable
+
+  ServiceSecurityGroupId:
+    Description: "Security Group ID for the KV service."
+    Value: !GetAtt KVServiceSecurityGroup.GroupId
