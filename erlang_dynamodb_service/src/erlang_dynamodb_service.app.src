@@ -1,5 +1,5 @@
 {application, erlang_dynamodb_service, [
-    {description, "An OTP application"},
+    {description, "DynamoDB service"},
     {vsn, "0.1.0"},
     {registered, []},
     {mod, {erlang_dynamodb_service_app, []}},
@@ -9,8 +9,12 @@
         erlcloud,
         ranch
     ]},
+    {modules, [
+        erlang_dynamodb_service_app,
+        erlang_dynamodb_service_sup,
+        kv_pb
+    ]},
     {env, []},
-    {modules, []},
     {licenses, ["Apache-2.0"]},
     {links, []}
  ]}.
