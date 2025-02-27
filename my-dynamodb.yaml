@@ -25,7 +25,7 @@ Resources:
         - AttributeName: key
           KeyType: HASH
       SSESpecification:
-        KMSMasterKeyId: "alias/DDBTableKmsKeyErlangService"
+        KMSMasterKeyId: "alias/aws/dynamodb"
         SSEEnabled: true
         SSEType: KMS
 
