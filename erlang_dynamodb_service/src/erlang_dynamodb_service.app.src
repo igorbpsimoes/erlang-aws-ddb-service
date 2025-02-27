@@ -5,7 +5,9 @@
     {mod, {erlang_dynamodb_service_app, []}},
     {applications, [
         kernel,
-        stdlib
+        stdlib,
+        erlcloud,
+        ranch
     ]},
     {env, []},
     {modules, []},
