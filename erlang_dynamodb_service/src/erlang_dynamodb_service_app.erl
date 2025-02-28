@@ -13,6 +13,7 @@ start(_StartType, _StartArgs) ->
     erlang_dynamodb_service_sup:start_link().
 
 stop(_State) ->
+    ranch:stop_listener(my_listener),
     ok.
 
 %% internal functions

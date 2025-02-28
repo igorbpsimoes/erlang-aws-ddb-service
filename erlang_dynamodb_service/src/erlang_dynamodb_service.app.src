@@ -12,6 +12,8 @@
     {modules, [
         erlang_dynamodb_service_app,
         erlang_dynamodb_service_sup,
+        erlang_dynamodb_service_ddb,
+        erlang_dynamodb_service_ranch,
         kv_pb
     ]},
     {env, []},
