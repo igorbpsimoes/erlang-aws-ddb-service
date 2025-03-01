@@ -1,7 +1,7 @@
 -module(ddb_client).
 -export([init/0, put_item/2, get_item/1]).
 
--define(TABLE, "dev_kv_table").  % Or read from config
+-define(TABLE, application:get_env(dynamodb_service, ddb_table)).
 
 init() ->
     erlcloud_ddb:setup_default([
