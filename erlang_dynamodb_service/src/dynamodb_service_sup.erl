@@ -1,9 +1,9 @@
 %%%-------------------------------------------------------------------
-%% @doc erlang_dynamodb_service top level supervisor.
+%% @doc dynamodb_service top level supervisor.
 %% @end
 %%%-------------------------------------------------------------------
 
--module(erlang_dynamodb_service_sup).
+-module(dynamodb_service_sup).
 
 -behaviour(supervisor).
 
@@ -40,7 +40,7 @@ init([]) ->
         id => RanchRef,
         start => {ranch, start_listener,
                 [RanchRef, ranch_tcp, TransportOpts,
-                erlang_dynamodb_service_ranch, []]},
+                gpb_tcp_protocol, []]},
         restart => permanent,
         shutdown => 5000,
         type => worker

@@ -1,4 +1,4 @@
-erlang_dynamodb_service
+dynamodb_service
 =====
 
 An OTP application

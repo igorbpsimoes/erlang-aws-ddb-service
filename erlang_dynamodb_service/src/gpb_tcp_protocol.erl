@@ -1,4 +1,4 @@
--module(erlang_dynamodb_service_ranch).
+-module(gpb_tcp_protocol).
 -behaviour(ranch_protocol).
 
 -export([start_link/3]).
@@ -49,7 +49,7 @@ handle_request(Bin, Socket, Transport) ->
 
 process_envelope(#req_envelope{type = set_request_t, set_req = SetReq}) ->
     #set_request{req = #data{key=Key, value=Val}} = SetReq,
-    ok = erlang_dynamodb_service_ddb:put_item(Key, Val),
+    ok = ddb_client:put_item(Key, Val),
     #req_envelope{
        type = set_response_t,
        set_resp = #set_response{error = ok}
@@ -57,7 +57,7 @@ process_envelope(#req_envelope{type = set_request_t, set_req = SetReq}) ->
 
 process_envelope(#req_envelope{type = get_request_t, get_req = GetReq}) ->
     #get_request{key=Key} = GetReq,
-    case erlang_dynamodb_service_ddb:get_item(Key) of
+    case ddb_client:get_item(Key) of
         {ok, Val} ->
             #req_envelope{
               type = get_response_t,
