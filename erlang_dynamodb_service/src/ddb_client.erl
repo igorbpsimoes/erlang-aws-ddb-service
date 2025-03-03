@@ -1,42 +1,54 @@
 -module(ddb_client).
 -export([init/0, put_item/2, get_item/1]).
 
--define(TABLE, application:get_env(dynamodb_service, ddb_table)).
+-define(TABLE, element(2, application:get_env(dynamodb_service, ddb_table))).
+-define(MAX_SIZE_BYTES, 400 * 1024). % 400 KB limit in bytes
 
 init() ->
     ok.
 
 put_item(Key, Value) ->
-    % 400 KB limit in bytes
-    MaxSizeBytes = 400 * 1024,
-
-    % if
-    %   byte_size(Value) > MaxSizeBytes ->
-    %       {error, too_large};
-    %   true ->
-    %       Item = #{
-    %         "key" => #{ s => Key },
-    %         "value" => #{ s => Value }
-    %       },
-    %       case erlcloud_ddb2:put_item(?TABLE, Item) of
-    %           {ok, _Resp} ->
-    %               ok;
-    %           Error ->
-    %               io:format("put_item error: ~p~n", [Error]),
-    %               {error, Error}
-    %       end
-    % end.
-    ok.
+    if
+      byte_size(Value) > ?MAX_SIZE_BYTES ->
+          {error, too_large};
+    true ->
+        case ercloud_put_item(Key, Value) of
+          {ok, _Resp} ->
+            ok;
+          Error ->
+            io:format("put_item error: ~p~n", [Error]),
+            {error, Error}
+        end
+    end.
 
 get_item(Key) ->
-    % KeyObj = #{"key" => #{ s => Key }},
-    % case erlcloud_ddb2:get_item(?TABLE, KeyObj, #{consistent_read => true}) of
-    %     {ok, #{"Item" := #{"value" := #{"s" := Val}}}} ->
-    %         {ok, Val};
-    %     {ok, #{"Item" := undefined}} ->
-    %         not_found;
-    %     Error ->
-    %         io:format("get_item error: ~p~n", [Error]),
-    %         {error, Error}
-    % end,
-    {ok, "myvalue"}.
+    case ercloud_get_item(Key) of
+        {ok, #{"Item" := #{"value" := #{"s" := Val}}}} ->
+            {ok, Val};
+        {ok, #{"Item" := undefined}} ->
+            not_found;
+        Error ->
+            io:format("get_item error: ~p~n", [Error]),
+            {error, Error}
+    end.
+
+ercloud_put_item(Key, Value) ->
+    Item = [{<<"Key">>, Key}, {<<"DataValue">>, Value}],
+    erlcloud_ddb2:put_item(binary_table_name(), Item).
+
+ercloud_get_item(Key) ->
+    ItemKey = [{<<"Key">>, {s, Key}}],
+    DdbOpts = [
+        {projection_expression, <<"DataValue">>},
+        consistent_read,
+        {return_consumed_capacity, total}
+    ],
+
+    erlcloud_ddb2:get_item(
+        binary_table_name(),
+        ItemKey,
+        DdbOpts
+    ).
+
+binary_table_name() ->
+    list_to_binary(?TABLE).
