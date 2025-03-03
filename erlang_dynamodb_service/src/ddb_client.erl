@@ -4,11 +4,6 @@
 -define(TABLE, application:get_env(dynamodb_service, ddb_table)).
 
 init() ->
-    erlcloud_ddb:setup_default([
-        {access_key_id,     <<"<YOUR_KEY_ID>">>},
-        {secret_access_key, <<"<YOUR_SECRET_KEY>">>},
-        {region, "eu-north-1"}  % Example region
-    ]),
     ok.
 
 put_item(Key, Value) ->
