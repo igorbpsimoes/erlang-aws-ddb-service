@@ -10,7 +10,9 @@ put_item(Key, Value) ->
       byte_size(Value) > ?MAX_SIZE_BYTES ->
           {error, too_large};
     true ->
-        case ercloud_put_item(Key, Value) of
+        DdbItem = to_erlcloud_ddb_set_item(Key, Value),
+
+        case ercloud_ddb_put_item(DdbItem) of
           {ok, _Resp} ->
             ok;
           Error ->
@@ -20,22 +22,36 @@ put_item(Key, Value) ->
     end.
 
 get_item(Key) ->
-    case ercloud_get_item(Key) of
-        {ok, [{<<"DataValue">>, Val}]} ->
-            {ok, Val};
+    DdbItem = to_erlcloud_ddb_get_item(Key),
+
+    case ercloud_ddb_get_item(DdbItem) of
         {ok, []} ->
             {error, not_found};
+        {ok, Item} ->
+            {ok, from_erlcloud_item(Item)};
         Error ->
             io:format("get_item error: ~p~n", [Error]),
             {error, Error}
     end.
 
-ercloud_put_item(Key, Value) ->
-    Item = [{<<"Key">>, Key}, {<<"DataValue">>, Value}],
-    erlcloud_ddb2:put_item(binary_table_name(), Item, [], ddb_config()).
+to_erlcloud_ddb_set_item(Key, Value) ->
+    lists:append(
+        to_erlcloud_ddb_get_item(Key),
+        [{<<"DataValue">>, {s, Value}}]
+    ).
 
-ercloud_get_item(Key) ->
-    ItemKey = [{<<"Key">>, {s, Key}}],
+to_erlcloud_ddb_get_item(Key) ->
+    [{<<"Key">>, {s, Key}}].
+
+ercloud_ddb_put_item(DdbSetItem) ->
+    erlcloud_ddb2:put_item(
+        binary_table_name(),
+        DdbSetItem,
+        [],
+        ddb_config()
+    ).
+
+ercloud_ddb_get_item(DdbGetItem) ->
     DdbOpts = [
         {projection_expression, <<"DataValue">>},
         consistent_read,
@@ -44,13 +60,19 @@ ercloud_get_item(Key) ->
 
     erlcloud_ddb2:get_item(
         binary_table_name(),
-        ItemKey,
+        DdbGetItem,
         DdbOpts,
         ddb_config()
     ).
 
-binary_table_name() ->
-    list_to_binary(?TABLE).
+from_erlcloud_item(Item) ->
+    case lists:keyfind(<<"DataValue">>, 1, Item) of
+        {_, Val} ->
+            Val;
+        false ->
+            io:format("from_erlcloud_item error: ~p~n", ["Could not find DataValue"]),
+            undefined
+    end.
 
 ddb_config() ->
     {ok, Conf} = erlcloud_aws:profile(atom_profile_name()),
@@ -58,3 +80,6 @@ ddb_config() ->
 
 atom_profile_name() ->
     list_to_atom(?ERLCLOUD_PROFILE).
+
+binary_table_name() ->
+    list_to_binary(?TABLE).
