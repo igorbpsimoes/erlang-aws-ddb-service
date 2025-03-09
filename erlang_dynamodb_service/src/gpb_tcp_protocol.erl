@@ -89,15 +89,10 @@ process_envelope(#req_envelope{type = get_request_t, get_req = GetReq}) ->
                   req = #data{key=Key, value=Val}
               }
             };
-        not_found ->
+        {error, not_found} ->
             #req_envelope{
               type = get_response_t,
               get_resp = #get_response{error = not_found}
-            };
-        {error, too_large} ->
-            #req_envelope{
-              type = set_response_t,
-              get_resp = #get_response{error = internal}
             };
         {error, _} ->
             #req_envelope{
