@@ -1,0 +1,89 @@
+ARG ASSUME_ROLE_ARN=default-arn
+ARG ROLE_SESSION_NAME=default-session
+ARG TASK_ROLE_PROFILE=default-profile
+
+FROM ghcr.io/adoptingerlang/service_discovery/erlang:26.0.2 AS builder
+
+WORKDIR /src
+
+ENV REBAR_BASE_DIR=/_build
+ENV PORT=8080
+
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+
+# build and cache dependencies as their own layer
+COPY rebar.config rebar.lock ./
+RUN --mount=id=hex-cache,type=cache,sharing=locked,target=/root/.cache/rebar3 \
+    rebar3 compile
+
+FROM builder AS prod_compiled
+
+RUN --mount=target=. \
+    --mount=id=hex-cache,type=cache,sharing=locked,target=/root/.cache/rebar3 \
+    rebar3 as prod compile
+
+FROM prod_compiled AS releaser
+
+# create the directory to unpack the release to
+RUN mkdir -p /opt/rel
+
+# build the release tarball and then unpack
+# to be copied into the image built in the next stage
+RUN --mount=target=. \
+    --mount=id=hex-cache,type=cache,sharing=locked,target=/root/.cache/rebar3 \
+    rebar3 as prod tar && \
+    tar -zxvf $REBAR_BASE_DIR/prod/rel/*/*.tar.gz -C /opt/rel
+
+FROM ghcr.io/adoptingerlang/service_discovery/debian:bullseye AS pre-runner
+
+WORKDIR /tmp/aws-installation
+
+RUN apt-get update && apt-get install -y curl && apt-get install -y unzip
+RUN apt update && apt install less
+
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install
+
+WORKDIR /root
+
+RUN rm -rf /tmp/aws-installation
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+
+FROM pre-runner AS configure-aws-credentials
+
+ARG ASSUME_ROLE_ARN
+ARG ROLE_SESSION_NAME
+ARG TASK_ROLE_PROFILE
+
+RUN <<EOF
+    aws configure set role_arn $ASSUME_ROLE_ARN  --profile $TASK_ROLE_PROFILE
+    aws configure set credential_source Ec2InstanceMetadata --profile $TASK_ROLE_PROFILE}
+    aws configure set region eu-north-1 --profile $TASK_ROLE_PROFILE
+    aws configure set output json --profile $TASK_ROLE_PROFILE
+EOF
+
+COPY populate_aws_credentials.sh /opt/dynamodb_service/populate_aws_credentials.sh
+RUN chmod +x /opt/dynamodb_service/populate_aws_credentials.sh
+
+FROM configure-aws-credentials AS runner
+
+WORKDIR /opt/dynamodb_service
+
+# write files generated during startup to /tmp
+ENV RELX_OUT_FILE_PATH=/tmp
+
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+
+COPY --from=releaser /opt/rel .
+
+ENV ASSUME_ROLE_ARN=$ASSUME_ROLE_ARN
+ENV ROLE_SESSION_NAME=$ROLE_SESSION_NAME
+ENV TASK_ROLE_PROFILE=$TASK_ROLE_PROFILE
+ENV POPULATE_CMD="./populate_aws_credentials.sh $ASSUME_ROLE_ARN $ROLE_SESSION_NAME $TASK_ROLE_PROFILE"
+
+ENV RUN_SERVICE_IN_FOREGROUND_CMD="./bin/dynamodb_service foreground"
+
+ENTRYPOINT ["sh", "-c"]
+EXPOSE $PORT
+CMD ["$POPULATE_CMD && $RUN_SERVICE_IN_FOREGROUND_CMD"]
