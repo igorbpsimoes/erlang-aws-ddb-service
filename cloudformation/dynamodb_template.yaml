@@ -19,10 +19,10 @@ Resources:
         ReadCapacityUnits: 20 # 25 is the free tier limit
         WriteCapacityUnits: 20 # 25 is the free tier limit
       AttributeDefinitions:
-        - AttributeName: key
+        - AttributeName: Key
           AttributeType: S
       KeySchema:
-        - AttributeName: key
+        - AttributeName: Key
           KeyType: HASH
       SSESpecification:
         KMSMasterKeyId: "alias/aws/dynamodb"
@@ -33,6 +33,7 @@ Resources:
   DynamoDBAutoScalingRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub "${EnvironmentName}-DynamoDBAutoScalingRole"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -42,25 +43,19 @@ Resources:
                 - application-autoscaling.amazonaws.com
             Action: "sts:AssumeRole"
       Path: "/"
-
-  # 2.1) Auto Scaling Policy with required actions
-  DynamoDBAutoScalingRolePolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: "MyDDBAutoscalingPolicy"
-      Roles:
-        - !Ref DynamoDBAutoScalingRole
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - "dynamodb:DescribeTable"
-              - "dynamodb:UpdateTable"
-              - "cloudwatch:PutMetricAlarm"
-              - "cloudwatch:DescribeAlarms"
-              - "cloudwatch:DeleteAlarms"
-            Resource: "*"
+      Policies:
+        - PolicyName: !Sub "${EnvironmentName}-DynamoDBAutoScalingPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "dynamodb:DescribeTable"
+                  - "dynamodb:UpdateTable"
+                  - "cloudwatch:PutMetricAlarm"
+                  - "cloudwatch:DescribeAlarms"
+                  - "cloudwatch:DeleteAlarms"
+                Resource: "*"
 
   # 3) Scalable Targets: define min/max capacity for READ + WRITE
   KVTableReadScalableTarget:
@@ -93,7 +88,7 @@ Resources:
       TargetTrackingScalingPolicyConfiguration:
         PredefinedMetricSpecification:
           PredefinedMetricType: DynamoDBReadCapacityUtilization
-        TargetValue: 70    # e.g., scale when usage hits ~70%
+        TargetValue: 70
         ScaleInCooldown: 60
         ScaleOutCooldown: 60
 
@@ -114,7 +109,3 @@ Outputs:
   DynamoDBTableName:
     Description: "Name of the DynamoDB table."
     Value: !Ref DDBTable
-
-  ServiceSecurityGroupId:
-    Description: "Security Group ID for the KV service."
-    Value: !GetAtt KVServiceSecurityGroup.GroupId
