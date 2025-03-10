@@ -12,6 +12,7 @@ if [ "$1" == "deploy" ]; then
     dynamodb)
       TEMPLATE_FILE="dynamodb_template.yaml"
       STACK_NAME="${ENVIRONMENT_NAME}-dynamodb-stack"
+
       aws cloudformation deploy --template-file $TEMPLATE_FILE --stack-name $STACK_NAME \
         --capabilities CAPABILITY_NAMED_IAM \
         --parameter-overrides EnvironmentName="${ENVIRONMENT_NAME}" \
@@ -20,13 +21,15 @@ if [ "$1" == "deploy" ]; then
     cluster)
       TEMPLATE_FILE="cluster_template.yaml"
       STACK_NAME="${ENVIRONMENT_NAME}-cluster-stack"
+      LOCAL_IP=$(dig -4 TXT +short o-o.myaddr.l.google.com @ns1.google.com)
+
       aws cloudformation deploy --template-file $TEMPLATE_FILE --stack-name $STACK_NAME \
           --disable-rollback \
           --capabilities CAPABILITY_NAMED_IAM \
-          --parameter-overrides EnvironmentName="${ENVIRONMENT_NAME}" \
+            --parameter-overrides EnvironmentName="${ENVIRONMENT_NAME}" \
             VpcId=vpc-0aad473ad61e24e93 \
             SubnetIds="subnet-03578933c0eaa04e9" \
-            LocalIp=79.169.138.229
+            LocalIp="${LOCAL_IP}"
       ;;
     service)
       TEMPLATE_FILE="my-service.yaml"
