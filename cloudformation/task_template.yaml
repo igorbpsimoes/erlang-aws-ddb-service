@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  This CloudFormation template defines the necessary resources for deploying an
+  ECS task for an Erlang service. It includes IAM roles for task execution and
+  task-specific permissions, an ECS task definition with container configuration,
+  and output for the task definition ARN.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: "A name to identify the environment (e.g., dev, prod)."
+
+  DockerRepository:
+    Type: String
+    Description: "Docker repository name for the Erlang service (from ECR)"
+
+  ImageTag:
+    Type: String
+    Description: "Docker image tag for the Erlang service"
+
+Resources:
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${EnvironmentName}-EcsTaskExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${EnvironmentName}-EcsTaskRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+              AWS:
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/${EnvironmentName}-EcsTaskRole"
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/${EnvironmentName}-EcsInstanceRole"
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: "DynamoDBReadWriteAccess"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "dynamodb:GetItem"
+                  - "dynamodb:PutItem"
+                Resource: !Sub "arn:aws:dynamodb:*:*:table/${EnvironmentName}-kv-table"
+        - PolicyName: "ECSExec"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ssmmessages:CreateControlChannel"
+                  - "ssmmessages:CreateDataChannel"
+                  - "ssmmessages:OpenControlChannel"
+                  - "ssmmessages:OpenDataChannel"
+                Resource: "*"
+
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "${EnvironmentName}-TaskDefinition"
+      NetworkMode: "bridge"
+      RequiresCompatibilities:
+        - EC2
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      Cpu: "256"
+      Memory: "819"
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSTaskRole
+      ContainerDefinitions:
+        - Name: !Sub "${EnvironmentName}-Container"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepository}:${ImageTag}"
+          Cpu: 256
+          Memory: 819
+          MemoryReservation: 717
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              HostPort: 80
+              Protocol: tcp
+              AppProtocol: http
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: "/ecs/test"
+              mode: "non-blocking"
+              awslogs-create-group: "true"
+              max-buffer-size: "25m"
+              awslogs-region: "eu-north-1"
+              awslogs-stream-prefix: "ecs"
+
+Outputs:
+  TaskDefinitionArn:
+    Description: "The ARN of the ECS task definition."
+    Value: !Ref ECSTaskDefinition
