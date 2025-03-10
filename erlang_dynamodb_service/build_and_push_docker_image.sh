@@ -12,10 +12,9 @@ DOCKER_TAG="$(git rev-parse --short HEAD)"
 
 ENVIRONMENT_NAME="${ENVIRONMENT_NAME:-$(read -p 'Enter ENVIRONMENT_NAME: ' input && echo $input)}"
 
-ECS_TASK_ROLE_ARN="$(read -p 'Enter ECS_TASK_ROLE_ARN: ' input && echo $input)"
-ROLE_SESSION_NAME="$(read -p 'Enter ROLE_SESSION_NAME: ' input && echo $input)"
-TASK_ROLE_PROFILE="$(read -p 'Enter TASK_ROLE_PROFILE: ' input && echo $input)"
-
+ECS_TASK_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ENVIRONMENT_NAME}-EcsTaskRole"
+ROLE_SESSION_NAME="${ENVIRONMENT_NAME}-task-role-session"
+TASK_ROLE_PROFILE="${ENVIRONMENT_NAME}-task-role-profile"
 ENV_REPO_NAME="${ENVIRONMENT_NAME}-${REPOSITORY_NAME}"
 ECR_URL="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
 
@@ -23,6 +22,8 @@ docker buildx build \
   --build-arg ECS_TASK_ROLE_ARN="$ECS_TASK_ROLE_ARN" \
   --build-arg ROLE_SESSION_NAME="$ROLE_SESSION_NAME" \
   --build-arg TASK_ROLE_PROFILE="$TASK_ROLE_PROFILE" \
+  --build-arg ENVIRONMENT_NAME="$ENVIRONMENT_NAME" \
+  --build-arg AWS_REGION="$AWS_REGION" \
   --platform linux/amd64,linux/arm64 \
   -o type=docker \
   --target runner \

@@ -1,6 +1,8 @@
 ARG ECS_TASK_ROLE_ARN=default-arn
 ARG ROLE_SESSION_NAME=default-session
 ARG TASK_ROLE_PROFILE=default-profile
+ARG ENVIRONMENT_NAME=dev
+ARG AWS_REGION=undefined-region
 
 FROM ghcr.io/adoptingerlang/service_discovery/erlang:26.0.2 AS builder
 
@@ -68,20 +70,28 @@ RUN chmod +x /opt/dynamodb_service/export_aws_creds.sh
 
 FROM configure-aws-credentials AS runner
 
-WORKDIR /opt/dynamodb_service
-
 # write files generated during startup to /tmp
 ENV RELX_OUT_FILE_PATH=/tmp
+
+ARG AWS_REGION
+ARG ENVIRONMENT_NAME
+
+ARG DDB_TABLE=$ENVIRONMENT_NAME-kv-table
+
+# Set service environment variables
+ENV DDB_TABLE=$DDB_TABLE
+ENV AWS_REGION=$AWS_REGION
+ENV ERLCLOUD_PROFILE=$TASK_ROLE_PROFILE
+
+ENV POPULATE_CMD="./export_aws_creds.sh $TASK_ROLE_PROFILE"
+ENV RUN_ERLANG_SERVICE="./bin/dynamodb_service foreground"
+
+WORKDIR /opt/dynamodb_service
 
 RUN rm -f /etc/apt/apt.conf.d/docker-clean
 
 COPY --from=releaser /opt/rel .
 
-ENV TASK_ROLE_PROFILE=$TASK_ROLE_PROFILE
-ENV POPULATE_CMD="./export_aws_creds.sh $TASK_ROLE_PROFILE"
-
-ENV RUN_SERVICE_IN_FOREGROUND_CMD="./bin/dynamodb_service foreground"
-
 ENTRYPOINT ["sh", "-c"]
 EXPOSE $PORT
-CMD ["$POPULATE_CMD && $RUN_SERVICE_IN_FOREGROUND_CMD"]
+CMD ["$POPULATE_CMD && $RUN_ERLANG_SERVICE"]

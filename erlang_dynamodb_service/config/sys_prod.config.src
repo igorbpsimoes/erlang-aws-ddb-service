@@ -1,0 +1,9 @@
+[
+  {dynamodb_service, [
+      {ddb_table, "${DDB_TABLE}"},
+      {erlcloud_profile, "${ERLCLOUD_PROFILE}"}
+  ]},
+  {erlcloud, [
+      {aws_region, "${AWS_REGION}"}
+  ]}
+].
