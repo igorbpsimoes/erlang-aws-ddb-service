@@ -1,4 +1,4 @@
-ARG ASSUME_ROLE_ARN=default-arn
+ARG ECS_TASK_ROLE_ARN=default-arn
 ARG ROLE_SESSION_NAME=default-session
 ARG TASK_ROLE_PROFILE=default-profile
 
@@ -52,19 +52,19 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean
 
 FROM pre-runner AS configure-aws-credentials
 
-ARG ASSUME_ROLE_ARN
+ARG ECS_TASK_ROLE_ARN
 ARG ROLE_SESSION_NAME
 ARG TASK_ROLE_PROFILE
 
 RUN <<EOF
-    aws configure set role_arn $ASSUME_ROLE_ARN  --profile $TASK_ROLE_PROFILE
-    aws configure set credential_source Ec2InstanceMetadata --profile $TASK_ROLE_PROFILE}
+    aws configure set role_arn $ECS_TASK_ROLE_ARN  --profile $TASK_ROLE_PROFILE
+    aws configure set credential_source Ec2InstanceMetadata --profile $TASK_ROLE_PROFILE
     aws configure set region eu-north-1 --profile $TASK_ROLE_PROFILE
     aws configure set output json --profile $TASK_ROLE_PROFILE
 EOF
 
-COPY populate_aws_credentials.sh /opt/dynamodb_service/populate_aws_credentials.sh
-RUN chmod +x /opt/dynamodb_service/populate_aws_credentials.sh
+COPY export_aws_creds.sh /opt/dynamodb_service/export_aws_creds.sh
+RUN chmod +x /opt/dynamodb_service/export_aws_creds.sh
 
 FROM configure-aws-credentials AS runner
 
@@ -77,10 +77,8 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean
 
 COPY --from=releaser /opt/rel .
 
-ENV ASSUME_ROLE_ARN=$ASSUME_ROLE_ARN
-ENV ROLE_SESSION_NAME=$ROLE_SESSION_NAME
 ENV TASK_ROLE_PROFILE=$TASK_ROLE_PROFILE
-ENV POPULATE_CMD="./populate_aws_credentials.sh $ASSUME_ROLE_ARN $ROLE_SESSION_NAME $TASK_ROLE_PROFILE"
+ENV POPULATE_CMD="./export_aws_creds.sh $TASK_ROLE_PROFILE"
 
 ENV RUN_SERVICE_IN_FOREGROUND_CMD="./bin/dynamodb_service foreground"
 
