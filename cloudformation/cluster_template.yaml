@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Creates an ECS cluster with an associated EC2 Auto Scaling group,
+  security group, IAM roles, and instance profile.
+  The cluster supports Fargate and EC2 launch types, with managed scaling.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: "ID of an existing VPC."
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id]
+    Description: "List of Subnet IDs for ECS container instances."
+
+  LocalIp:
+    Type: String
+    Description: "Your local IP address to allow TCP requests"
+
+  EnvironmentName:
+    Type: String
+    Description: "A name to identify the environment (e.g., dev, prod)."
+
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${EnvironmentName}-EcsCluster"
+      ClusterSettings:
+        - Name: "containerInsights"
+          Value: "disabled"
+      ServiceConnectDefaults:
+        Namespace: !Sub "${EnvironmentName}-EcsCluster"
+
+  Ec2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Created in the ECS cluster template"
+      GroupName: !Sub "${EnvironmentName}-EcsSecurityGroup"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - FromPort: 80
+          ToPort: 80
+          IpProtocol: tcp
+          CidrIp: !Sub "${LocalIp}/32"
+
+  ECSInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        # Lets the instance register into ECS, pull images from ECR, etc.
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+      Policies:
+        - PolicyName: "ECSInstancePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "sts:AssumeRole"
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${EnvironmentName}-EcsTaskRole"
+
+  ECSInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref ECSInstanceRole
+
+  ECSLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    DependsOn: ECSCluster
+    Properties:
+      LaunchTemplateData:
+        ImageId: resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-kernel-5.10-hvm-x86_64-ebs
+        SecurityGroupIds:
+          - !GetAtt Ec2SecurityGroup.GroupId
+        InstanceType: t3.micro
+        IamInstanceProfile:
+          Arn: !GetAtt ECSInstanceProfile.Arn
+        UserData:
+          Fn::Base64:
+            Fn::Sub:
+              - "#!/bin/bash\n echo ECS_CLUSTER=${ClusterName} >> /etc/ecs/ecs.config;"
+              - ClusterName: !Ref ECSCluster
+
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: ECSCluster
+    Properties:
+      MinSize: 1
+      MaxSize: 3
+      DesiredCapacity: 1
+      LaunchTemplate:
+        LaunchTemplateId:
+          Ref: ECSLaunchTemplate
+        Version:
+          Fn::GetAtt:
+            - ECSLaunchTemplate
+            - LatestVersionNumber
+      VPCZoneIdentifier: !Ref SubnetIds
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: true
+          Value: !Join ["-", ["ECSInstance", !Ref ECSCluster]]
+
+  AsgCapacityProvider:
+    Type: AWS::ECS::CapacityProvider
+    Properties:
+      AutoScalingGroupProvider:
+        AutoScalingGroupArn:
+          Ref: ECSAutoScalingGroup
+        ManagedScaling:
+          Status: ENABLED
+          TargetCapacity: 100
+        ManagedTerminationProtection: DISABLED
+
+  ClusterCPAssociation:
+    Type: AWS::ECS::ClusterCapacityProviderAssociations
+    DependsOn: ECSCluster
+    Properties:
+      Cluster: !Ref ECSCluster
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+        - !Ref AsgCapacityProvider
+      DefaultCapacityProviderStrategy:
+        - Base: 0
+          Weight: 1
+          CapacityProvider: !Ref AsgCapacityProvider
+
+Outputs:
+  ECSCluster:
+    Description: "The created cluster."
+    Value: !Ref ECSCluster
