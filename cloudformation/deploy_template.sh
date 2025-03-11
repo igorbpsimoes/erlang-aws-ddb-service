@@ -27,10 +27,13 @@ case $TEMPLATE_NAME in
     STACK_NAME="${ENVIRONMENT_NAME}-cluster-stack"
     LOCAL_IP=$(dig -4 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"')
 
+    VPC_CIDR_IP="${VPC_CIDR_IP:-$(read -p 'Enter VPC_CIDR_IP: ' input && echo $input)}"
+
     aws cloudformation deploy --template-file $TEMPLATE_FILE --stack-name $STACK_NAME \
         --capabilities CAPABILITY_NAMED_IAM \
         --parameter-overrides EnvironmentName="${ENVIRONMENT_NAME}" \
         VpcId=${VPC_ID} \
+        VpcCidrIp=${VPC_CIDR_IP} \
         SubnetIds=${SUBNET_IDS} \
         LocalIp=${LOCAL_IP}
     ;;
@@ -47,7 +50,7 @@ case $TEMPLATE_NAME in
           DockerRepository="${REPOSITORY_NAME}" \
           ImageTag="${IMAGE_TAG}"
 
-    if [ "$2" = "--build-and-push-docker-imager" ]; then
+    if [ "$2" = "--build-and-push-docker-image" ]; then
       echo "Building and pushing Docker image..."
 
       $SCRIPT_DIR/../erlang_dynamodb_service/build_and_push_docker_image.sh "$REPOSITORY_NAME" "$ENVIRONMENT_NAME"
