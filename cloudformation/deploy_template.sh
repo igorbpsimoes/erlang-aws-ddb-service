@@ -12,7 +12,6 @@ SCRIPT_DIR=$(dirname "$0")
 
 VPC_ID=vpc-0aad473ad61e24e93
 SUBNET_IDS="subnet-03578933c0eaa04e9"
-SECURITY_GROUP_IDS="sg-0f5a70027c5af299c"
 
 case $TEMPLATE_NAME in
   dynamodb)
@@ -51,6 +50,8 @@ case $TEMPLATE_NAME in
   service)
     TEMPLATE_FILE="$SCRIPT_DIR/service_template.yaml"
     STACK_NAME="${ENVIRONMENT_NAME}-service-stack"
+
+    SECURITY_GROUP_IDS="${SECURITY_GROUP_IDS:-$(read -p 'Enter SECURITY_GROUP_IDS: ' input && echo $input)}"
 
     aws cloudformation deploy --template-file $TEMPLATE_FILE --stack-name $STACK_NAME \
         --disable-rollback \

@@ -1,12 +1,34 @@
 -module(test_client).
--export([set_kv/2, get_kv/1]).
+-export([interactive/0, set_kv/2, get_kv/1]).
 
 -include("kv_pb.hrl").
 
--define(HOST, "localhost").
--define(PORT, 8080).
+-define(HOST, "replace-with-NLB-dns").
+-define(PORT, 80).
 -define(SOCKET_TIMEOUT, 5000).
 -define(MAX_PACKET_SIZE, 6143).
+
+interactive() ->
+    io:format("Entering interactive mode. Type 'quit' to exit.~n", []),
+    loop().
+
+loop() ->
+    Input = string:tokens(string:trim(io:get_line("> ")), " "),
+    case Input of
+        ["set", Key, Value] ->
+            Res = set_kv(Key, Value),
+            io:format("Result: ~p~n", [Res]),
+            loop();
+        ["get", Key] ->
+            Res = get_kv(Key),
+            io:format("Result: ~p~n", [Res]),
+            loop();
+        ["quit"] ->
+            io:format("Exiting...~n", []);
+        _ ->
+            io:format("Unknown command. Usage: set <Key> <Value> | get <Key> | quit~n", []),
+            loop()
+    end.
 
 set_kv(Key, Value) ->
   ReqEnvelope = build_req_envelope(
