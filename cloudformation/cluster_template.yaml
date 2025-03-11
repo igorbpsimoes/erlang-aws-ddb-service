@@ -82,8 +82,9 @@ Resources:
     Type: AWS::EC2::LaunchTemplate
     DependsOn: ECSCluster
     Properties:
+      LaunchTemplateName: !Sub "${EnvironmentName}-EcsLaunchTemplate"
       LaunchTemplateData:
-        ImageId: resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-kernel-5.10-hvm-x86_64-ebs
+        ImageId: resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
         SecurityGroupIds:
           - !GetAtt Ec2SecurityGroup.GroupId
         InstanceType: t3.micro
@@ -118,6 +119,7 @@ Resources:
   AsgCapacityProvider:
     Type: AWS::ECS::CapacityProvider
     Properties:
+      Name: !Sub "${EnvironmentName}-AsgCapacityProvider"
       AutoScalingGroupProvider:
         AutoScalingGroupArn:
           Ref: ECSAutoScalingGroup
