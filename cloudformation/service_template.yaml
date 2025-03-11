@@ -82,7 +82,7 @@ Resources:
       UnhealthyThresholdCount: 2
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
-          Value: "300"
+          Value: "15"
 
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
