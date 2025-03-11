@@ -47,7 +47,6 @@ Resources:
               Service:
                 - ecs-tasks.amazonaws.com
               AWS:
-                - !Sub "arn:aws:iam::${AWS::AccountId}:role/${EnvironmentName}-EcsTaskRole"
                 - !Sub "arn:aws:iam::${AWS::AccountId}:role/${EnvironmentName}-EcsInstanceRole"
             Action:
               - sts:AssumeRole
@@ -78,28 +77,27 @@ Resources:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: !Sub "${EnvironmentName}-TaskDefinition"
-      NetworkMode: "bridge"
+      NetworkMode: bridge
       RequiresCompatibilities:
         - EC2
+      Cpu: "480"
+      Memory: "200"
       RuntimePlatform:
         CpuArchitecture: X86_64
         OperatingSystemFamily: LINUX
-      Cpu: "256"
-      Memory: "819"
       ExecutionRoleArn: !Ref ECSTaskExecutionRole
       TaskRoleArn: !Ref ECSTaskRole
       ContainerDefinitions:
         - Name: !Sub "${EnvironmentName}-Container"
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepository}:${ImageTag}"
-          Cpu: 256
-          Memory: 819
-          MemoryReservation: 717
+          Cpu: 472
+          Memory: 190
+          MemoryReservation: 150
           Essential: true
           PortMappings:
             - ContainerPort: 8080
               HostPort: 80
               Protocol: tcp
-              AppProtocol: http
           LogConfiguration:
             LogDriver: "awslogs"
             Options:
