@@ -40,14 +40,12 @@ case $TEMPLATE_NAME in
     STACK_NAME="${ENVIRONMENT_NAME}-task-stack"
 
     REPOSITORY_NAME="${REPOSITORY_NAME:-$(read -p 'Enter REPOSITORY_NAME: ' input && echo $input)}"
-    ENV_REPO_NAME="${ENVIRONMENT_NAME}-${REPOSITORY_NAME}"
-
     IMAGE_TAG="$(git rev-parse --short HEAD)"
 
     aws cloudformation deploy --template-file $TEMPLATE_FILE --stack-name $STACK_NAME \
         --capabilities CAPABILITY_NAMED_IAM \
         --parameter-overrides EnvironmentName="${ENVIRONMENT_NAME}" \
-          DockerRepository="${ENV_REPO_NAME}" \
+          DockerRepository="${REPOSITORY_NAME}" \
           ImageTag="${IMAGE_TAG}"
     ;;
   service)

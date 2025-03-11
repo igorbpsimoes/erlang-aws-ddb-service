@@ -73,6 +73,11 @@ Resources:
                   - "ssmmessages:OpenDataChannel"
                 Resource: "*"
 
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${EnvironmentName}-${DockerRepository}"
+
   ECSTaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -89,7 +94,7 @@ Resources:
       TaskRoleArn: !Ref ECSTaskRole
       ContainerDefinitions:
         - Name: !Sub "${EnvironmentName}-Container"
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepository}:${ImageTag}"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}:${ImageTag}"
           Cpu: 472
           Memory: 190
           MemoryReservation: 150
