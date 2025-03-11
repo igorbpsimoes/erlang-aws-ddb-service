@@ -7,11 +7,11 @@ fi
 
 TEMPLATE_NAME="$1"
 
-ENVIRONMENT_NAME=${ENVIRONMENT_NAME:-$(read -p 'Enter ENVIRONMENT_NAME: ' input && echo $input)}
 SCRIPT_DIR=$(dirname "$0")
 
-VPC_ID=vpc-0aad473ad61e24e93
-SUBNET_IDS="subnet-03578933c0eaa04e9"
+ENVIRONMENT_NAME=${ENVIRONMENT_NAME:-$(read -p 'Enter ENVIRONMENT_NAME: ' input && echo $input)}
+VPC_ID="${VPC_ID:-$(read -p 'Enter VPC_ID: ' input && echo $input)}"
+SUBNET_IDS="${SUBNET_IDS:-$(read -p 'Enter SUBNET_IDS: ' input && echo $input)}"
 
 case $TEMPLATE_NAME in
   dynamodb)
