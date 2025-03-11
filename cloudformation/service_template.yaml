@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description:
+  Creates an ECS service with an associated Network Load Balancer (NLB) and target group.
+  The service runs on EC2 instances and is associated with a task definition.
+  The service is configured with a listener on the NLB.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: "A name to identify the environment (e.g., dev, prod)."
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: "ID of an existing VPC."
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id]
+    Description: "List of Subnet IDs for ECS container instances."
+
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id]
+    Description: "List of Security Group IDs for the ECS service."
+Resources:
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Sub "${EnvironmentName}-EcsCluster"
+      TaskDefinition: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/${EnvironmentName}-TaskDefinition"
+      LaunchType: EC2
+      ServiceName: !Sub "${EnvironmentName}-EcsService"
+      SchedulingStrategy: REPLICA
+      DesiredCount: 1
+      AvailabilityZoneRebalancing: ENABLED
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+      DeploymentController:
+        Type: ECS
+      EnableExecuteCommand: true
+      ServiceConnectConfiguration:
+        Enabled: false
+      PlacementStrategies:
+        - Field: attribute:ecs.availability-zone
+          Type: spread
+        - Field: memory
+          Type: binpack
+      LoadBalancers:
+        - ContainerName: !Sub "${EnvironmentName}-Container"
+          ContainerPort: 8080
+          LoadBalancerName: !Ref AWS::NoValue
+          TargetGroupArn: !Ref TargetGroup
+      EnableECSManagedTags: true
+    DependsOn:
+      - Listener
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: network
+      Name: !Sub "${EnvironmentName}-NLB"
+      SecurityGroups: !Ref SecurityGroupIds
+      Subnets: !Ref SubnetIds
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "${EnvironmentName}-TargetGroup"
+      Protocol: TCP
+      Port: 80
+      TargetType: instance
+      HealthCheckProtocol: TCP
+      VpcId: !Ref VpcId
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "300"
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref LoadBalancer
+      Protocol: TCP
+      Port: 80
+Outputs:
+  ECSService:
+    Description: The created service.
+    Value: !Ref ECSService
