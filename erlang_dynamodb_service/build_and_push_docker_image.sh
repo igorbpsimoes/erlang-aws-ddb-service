@@ -1,22 +1,25 @@
 #!/bin/bash
 
-if [ "$#" -ne 3 ]; then
-  echo "Usage: $0 <aws-region> <account_id> <repository-name>"
+if [ "$#" -ne 2 ]; then
+  echo "Usage: $0 <repository-name> <environment-name>"
   exit 1
 fi
 
-AWS_REGION="$1"
-ACCOUNT_ID="$2"
-REPOSITORY_NAME="$3"
+REPOSITORY_NAME="$1"
+ENVIRONMENT_NAME="$2"
 DOCKER_TAG="$(git rev-parse --short HEAD)"
 
-ENVIRONMENT_NAME="${ENVIRONMENT_NAME:-$(read -p 'Enter ENVIRONMENT_NAME: ' input && echo $input)}"
+AWS_REGION=${AWS_REGION:-$(read -p 'Enter AWS_REGION: ' input && echo $input)}
+ACCOUNT_ID=${ACCOUNT_ID:-$(read -p 'Enter ACCOUNT_ID: ' input && echo $input)}
 
 ECS_TASK_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ENVIRONMENT_NAME}-EcsTaskRole"
 ROLE_SESSION_NAME="${ENVIRONMENT_NAME}-task-role-session"
 TASK_ROLE_PROFILE="${ENVIRONMENT_NAME}-task-role-profile"
 ENV_REPO_NAME="${ENVIRONMENT_NAME}-${REPOSITORY_NAME}"
 ECR_URL="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOCKERFILE_PATH="$SCRIPT_DIR/Dockerfile"
 
 docker buildx build \
   --build-arg ECS_TASK_ROLE_ARN="$ECS_TASK_ROLE_ARN" \
@@ -27,7 +30,8 @@ docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -o type=docker \
   --target runner \
-  --tag "$ENV_REPO_NAME:$DOCKER_TAG" .
+  --tag "$ENV_REPO_NAME:$DOCKER_TAG" \
+  -f "$DOCKERFILE_PATH" "$SCRIPT_DIR"
 
 # Authenticate Docker to AWS ECR
 aws --region "$AWS_REGION" ecr get-login-password | \

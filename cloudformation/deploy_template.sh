@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ "$#" -ne 1 ]; then
-  echo "Usage: $0 <template-name>"
+if [ "$#" -lt 1 ]; then
+  echo "Usage: $0 <template-name> [options]"
   exit 1
 fi
 
@@ -46,6 +46,12 @@ case $TEMPLATE_NAME in
         --parameter-overrides EnvironmentName="${ENVIRONMENT_NAME}" \
           DockerRepository="${REPOSITORY_NAME}" \
           ImageTag="${IMAGE_TAG}"
+
+    if [ "$2" = "--build-and-push-docker-imager" ]; then
+      echo "Building and pushing Docker image..."
+
+      $SCRIPT_DIR/../erlang_dynamodb_service/build_and_push_docker_image.sh "$REPOSITORY_NAME" "$ENVIRONMENT_NAME"
+    fi
     ;;
   service)
     TEMPLATE_FILE="$SCRIPT_DIR/service_template.yaml"
