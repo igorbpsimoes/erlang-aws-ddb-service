@@ -101,7 +101,6 @@ Resources:
           Essential: true
           PortMappings:
             - ContainerPort: 8080
-              HostPort: 80
               Protocol: tcp
           LogConfiguration:
             LogDriver: "awslogs"

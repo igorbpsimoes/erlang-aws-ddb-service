@@ -9,6 +9,10 @@ Parameters:
     Type: AWS::EC2::VPC::Id
     Description: "ID of an existing VPC."
 
+  VpcCidrIp:
+    Type: String
+    Description: "CIDR block for the VPC."
+
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id]
     Description: "List of Subnet IDs for ECS container instances."
@@ -43,6 +47,14 @@ Resources:
           ToPort: 80
           IpProtocol: tcp
           CidrIp: !Sub "${LocalIp}/32"
+        - FromPort: 32768
+          ToPort: 65535
+          IpProtocol: tcp
+          CidrIp: !Sub "${LocalIp}/32"
+        - FromPort: 32768
+          ToPort: 65535
+          IpProtocol: tcp
+          CidrIp: !Sub ${VpcCidrIp}
 
   ECSInstanceRole:
     Type: AWS::IAM::Role
