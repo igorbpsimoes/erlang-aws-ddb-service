@@ -32,7 +32,7 @@ Resources:
       DesiredCount: 1
       AvailabilityZoneRebalancing: ENABLED
       DeploymentConfiguration:
-        MinimumHealthyPercent: 100
+        MinimumHealthyPercent: 50
         MaximumPercent: 200
         DeploymentCircuitBreaker:
           Enable: true
