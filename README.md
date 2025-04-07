@@ -1,3 +1,11 @@
+# Introduction
+
+This repo contains a service in Erlang, which implements a simplified interface for storing/retrieving data in AWS DynamoDB.
+It also contains CloudFormation templates to deploy the whole needed infra in AWS: DDB / Cluster / Task/ Service.
+
+The service essentially exposes an API over TCP using serialized Google protocol buffer messages as
+payload.
+
 # Release
 Make sure to have credentials for AWS set before starting the release.
 
